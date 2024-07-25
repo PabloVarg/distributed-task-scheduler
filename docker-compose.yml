@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16.3
+    restart: always
+    shm_size: 128mb
+    volumes:
+      - tasks_db:/var/lib/postgresql/data
+    env_file:
+        - ./.envs/db.env
+    ports:
+      - 5432:5432
+
+  scheduler:
+    build:
+        dockerfile: ./Dockerfile.dev
+        context: .
+    env_file:
+        - ./.envs/scheduler.env
+    volumes:
+      - .:/app
+
+volumes:
+  tasks_db:
