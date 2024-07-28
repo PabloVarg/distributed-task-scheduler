@@ -20,6 +20,10 @@ func (s *Scheduler) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if request.Command == "" {
+		http.Error(w, "{\"message\": \"a command should be given\"}", http.StatusUnprocessableEntity)
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
