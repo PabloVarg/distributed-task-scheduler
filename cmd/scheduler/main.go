@@ -22,8 +22,7 @@ func main() {
 		app.logger.Fatalln(err)
 	}
 	app.logger.Println("scheduler started")
-
-	<-scheduler.Start()
+	scheduler.Start()
 }
 
 func (app *app) readConf() scheduler.SchedulerConf {
@@ -34,6 +33,7 @@ func (app *app) readConf() scheduler.SchedulerConf {
 
 	return scheduler.SchedulerConf{
 		DB_DSN: dsn,
+		Logger: app.logger,
 	}
 }
 

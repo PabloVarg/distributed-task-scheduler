@@ -18,6 +18,8 @@ services:
         - ./.envs/scheduler.env
     volumes:
       - .:/app
+    ports:
+      - 8000:8000
 
 volumes:
   tasks_db:
