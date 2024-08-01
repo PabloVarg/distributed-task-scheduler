@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/pablovarg/distributed-task-scheduler/internal/scheduler"
 )
@@ -22,7 +24,13 @@ func main() {
 		app.logger.Fatalln(err)
 	}
 	app.logger.Println("scheduler started")
-	scheduler.Start()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	app.logger.Println("Starting scheduler")
+	<-scheduler.Start(ctx)
+	app.logger.Println("Shutting down scheduler")
 }
 
 func (app *app) readConf() scheduler.SchedulerConf {
@@ -32,9 +40,11 @@ func (app *app) readConf() scheduler.SchedulerConf {
 	}
 
 	return scheduler.SchedulerConf{
-		Addr:   ":8000",
-		DB_DSN: dsn,
-		Logger: app.logger,
+		Addr:         ":8000",
+		DB_DSN:       dsn,
+		Logger:       app.logger,
+		PollInterval: 1 * time.Second,
+		BatchSize:    10,
 	}
 }
 

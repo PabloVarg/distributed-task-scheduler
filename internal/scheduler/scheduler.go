@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -13,25 +14,22 @@ import (
 )
 
 type SchedulerConf struct {
-	DB_DSN string
-	Logger *log.Logger
-	Addr   string
+	DB_DSN       string
+	Logger       *log.Logger
+	Addr         string
+	PollInterval time.Duration
+	BatchSize    int
 }
 
 type Scheduler struct {
 	db        *sqlx.DB
 	logger    *log.Logger
-	addr      string
 	taskModel task.TaskModel
+	SchedulerConf
 }
 
 func NewScheduler(conf SchedulerConf, logger *log.Logger) (*Scheduler, error) {
-	db, err := sqlx.Open("postgres", conf.DB_DSN)
-	if err != nil {
-		return nil, fmt.Errorf("can not connect to the database (%w)", err)
-	}
-
-	err = db.Ping()
+	db, err := sqlx.Connect("postgres", conf.DB_DSN)
 	if err != nil {
 		return nil, fmt.Errorf("can not connect to the database (%w)", err)
 	}
@@ -44,25 +42,73 @@ func NewScheduler(conf SchedulerConf, logger *log.Logger) (*Scheduler, error) {
 	return &Scheduler{
 		db:     db,
 		logger: assignedLogger,
-		addr:   conf.Addr,
 		taskModel: task.TaskModel{
 			DB: db,
 		},
+		SchedulerConf: conf,
 	}, nil
 }
 
-func (s *Scheduler) Start() error {
-	return s.startServer()
+func (s *Scheduler) Start(ctx context.Context) <-chan any {
+	done := make(chan any)
+
+	go s.pollTasks(ctx)
+	go s.startServer(ctx)
+
+	go func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			close(done)
+		}
+	}(ctx)
+
+	return done
 }
 
-func (s *Scheduler) startServer() error {
+func (s *Scheduler) startServer(ctx context.Context) {
 	srv := http.Server{
-		Addr:         s.addr,
+		Addr:         s.SchedulerConf.Addr,
 		Handler:      s.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
-	s.logger.Printf("Listening on %s", s.addr)
-	return srv.ListenAndServe()
+	go func() {
+		s.logger.Printf("Listening on %s\n", s.SchedulerConf.Addr)
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			s.logger.Fatalln(err)
+		}
+		s.logger.Println("Shutting down server")
+	}()
+
+	select {
+	case <-ctx.Done():
+		srv.Shutdown(ctx)
+	}
+}
+
+func (s *Scheduler) pollTasks(ctx context.Context) {
+	ticker := time.NewTicker(s.SchedulerConf.PollInterval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+
+			tasks, err := s.taskModel.GetDueTasks(ctx, s.SchedulerConf.BatchSize)
+			if err != nil {
+				s.logger.Fatalln(err)
+			}
+
+			for _, task := range tasks {
+				err := s.taskModel.CompleteTask(ctx, task.ID)
+				if err != nil {
+					s.logger.Println(err)
+				}
+			}
+		}
+	}
 }
