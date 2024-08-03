@@ -32,12 +32,24 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
         WHERE
             scheduled_at <= NOW() + INTERVAL '5 days'
             AND successful_at IS NULL
-        LIMIT $1
     `
 
+	if batchSize != 0 {
+		query += `
+            LIMIT $1
+        `
+	}
+
 	var dueTasks []Task
-	if err := m.DB.SelectContext(ctx, &dueTasks, query, batchSize); err != nil {
-		return nil, err
+	switch batchSize {
+	case 0:
+		if err := m.DB.SelectContext(ctx, &dueTasks, query); err != nil {
+			return nil, err
+		}
+	default:
+		if err := m.DB.SelectContext(ctx, &dueTasks, query, batchSize); err != nil {
+			return nil, err
+		}
 	}
 
 	return dueTasks, nil
