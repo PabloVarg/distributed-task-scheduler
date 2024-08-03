@@ -23,8 +23,6 @@ func main() {
 	if err != nil {
 		app.logger.Fatalln(err)
 	}
-	app.logger.Println("scheduler started")
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
