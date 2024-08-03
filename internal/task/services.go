@@ -15,12 +15,12 @@ func (m *TaskModel) CreateTask(ctx context.Context, task Task) (*Task, error) {
             id, created_at
     `
 
-	var result *Task
-	if err := m.DB.GetContext(ctx, result, query, task.Command, task.ScheduledAt); err != nil {
+	var result Task
+	if err := m.DB.GetContext(ctx, &result, query, task.Command, task.ScheduledAt); err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return &result, nil
 }
 
 func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, error) {
