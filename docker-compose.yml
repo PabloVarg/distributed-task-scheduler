@@ -6,20 +6,31 @@ services:
     volumes:
       - tasks_db:/var/lib/postgresql/data
     env_file:
-        - ./.envs/db.env
+      - ./.envs/db.env
     ports:
       - 5432:5432
 
   scheduler:
     build:
-        dockerfile: ./Dockerfile.dev
-        context: .
+      dockerfile: ./Dockerfile.dev
+      context: .
+    entrypoint: air -c ./.air.scheduler.toml
     env_file:
-        - ./.envs/scheduler.env
+      - ./.envs/scheduler.env
     volumes:
       - .:/app
     ports:
       - 8000:8000
+
+  worker:
+    build:
+      dockerfile: ./Dockerfile.dev
+      context: .
+    entrypoint: air -c ./.air.worker.toml
+    env_file:
+      - ./.envs/worker.env
+    volumes:
+      - .:/app
 
 volumes:
   tasks_db:
