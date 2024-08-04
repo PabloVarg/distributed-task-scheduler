@@ -42,7 +42,7 @@ func (app *app) readConf() scheduler.SchedulerConf {
 		DB_DSN:       dsn,
 		Logger:       app.logger,
 		PollInterval: 1 * time.Second,
-		// BatchSize:    10,
+		BatchSize:    100,
 	}
 }
 
