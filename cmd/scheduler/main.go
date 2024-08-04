@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/pablovarg/distributed-task-scheduler/internal/scheduler"
+	"github.com/pablovarg/distributed-task-scheduler/scheduler"
 )
 
 type app struct {
