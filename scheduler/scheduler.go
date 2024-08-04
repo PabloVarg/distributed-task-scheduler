@@ -126,7 +126,9 @@ func (s *Scheduler) startGRPCServer(ctx context.Context) {
 	}
 
 	server := grpc.NewServer()
-	pb.RegisterSchedulerServer(server, &SchedulerServerImpl{})
+	pb.RegisterSchedulerServer(server, &SchedulerServerImpl{
+		Scheduler: s,
+	})
 
 	go func(ctx context.Context) {
 		select {

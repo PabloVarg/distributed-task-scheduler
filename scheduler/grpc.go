@@ -7,7 +7,7 @@ import (
 )
 
 type SchedulerServerImpl struct {
-	Scheduler
+	*Scheduler
 	pb.UnimplementedSchedulerServer
 }
 
