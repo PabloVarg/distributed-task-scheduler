@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
+
+	pb "github.com/pablovarg/distributed-task-scheduler/internal/grpc"
 	"github.com/pablovarg/distributed-task-scheduler/internal/task"
 )
 
@@ -17,6 +21,7 @@ type SchedulerConf struct {
 	DB_DSN       string
 	Logger       *log.Logger
 	Addr         string
+	GRPCAddr     string
 	PollInterval time.Duration
 	BatchSize    int
 }
@@ -54,6 +59,7 @@ func (s *Scheduler) Start(ctx context.Context) <-chan any {
 
 	go s.pollTasks(ctx)
 	go s.startServer(ctx)
+	go s.startGRPCServer(ctx)
 
 	go func(ctx context.Context) {
 		select {
@@ -110,5 +116,27 @@ func (s *Scheduler) pollTasks(ctx context.Context) {
 				}
 			}
 		}
+	}
+}
+
+func (s *Scheduler) startGRPCServer(ctx context.Context) {
+	lis, err := net.Listen("tcp", s.SchedulerConf.GRPCAddr)
+	if err != nil {
+		s.logger.Fatalln(err)
+	}
+
+	server := grpc.NewServer()
+	pb.RegisterSchedulerServer(server, &SchedulerServerImpl{})
+
+	go func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			server.GracefulStop()
+		}
+	}(ctx)
+
+	s.logger.Printf("Grpc server listening on %s", s.SchedulerConf.GRPCAddr)
+	if err := server.Serve(lis); err != nil {
+		s.logger.Fatalln(err)
 	}
 }

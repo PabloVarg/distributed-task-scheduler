@@ -39,6 +39,7 @@ func (app *app) readConf() scheduler.SchedulerConf {
 
 	return scheduler.SchedulerConf{
 		Addr:         ":8000",
+		GRPCAddr:     ":9000",
 		DB_DSN:       dsn,
 		Logger:       app.logger,
 		PollInterval: 1 * time.Second,

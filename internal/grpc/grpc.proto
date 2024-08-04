@@ -1,0 +1,23 @@
+syntax = "proto3";
+option go_package = "github.com/pablovarg/distributed-task-scheduler/internal/grpc";
+
+package grpc;
+
+message Heartbeat {
+}
+
+message Ok {
+    bool Success = 1;
+}
+
+message Task {
+    int64 ID = 1;
+}
+
+service Scheduler {
+    rpc SendHeartbeat (Heartbeat) returns (Ok) {}
+}
+
+service Worker {
+    rpc ExecuteJob (Task) returns (Ok) {}
+}
