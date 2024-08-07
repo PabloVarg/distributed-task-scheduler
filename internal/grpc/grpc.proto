@@ -4,6 +4,7 @@ option go_package = "github.com/pablovarg/distributed-task-scheduler/internal/gr
 package grpc;
 
 message Heartbeat {
+    string Address = 1;
 }
 
 message Ok {
@@ -12,6 +13,7 @@ message Ok {
 
 message Task {
     int64 ID = 1;
+    string command = 2;
 }
 
 service Scheduler {

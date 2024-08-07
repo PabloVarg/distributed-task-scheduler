@@ -13,6 +13,7 @@ import (
 )
 
 type WorkerConf struct {
+	WorkerAddr    string
 	SchedulerAddr string
 	Logger        *log.Logger
 }
@@ -61,7 +62,9 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(1 * time.Second): // TODO: Get from ENV
-			w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{})
+			w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
+				Address: w.WorkerConf.WorkerAddr,
+			})
 		}
 	}
 }

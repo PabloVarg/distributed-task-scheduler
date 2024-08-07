@@ -32,9 +32,14 @@ func (app *app) readConf(logger *log.Logger) worker.WorkerConf {
 	if !ok {
 		app.logger.Fatalln("scheduler address not found")
 	}
-	app.logger.Printf("scheduler addr: %s identified", schedulerAddr)
+	workerAddr, ok := os.LookupEnv("WORKER_ADDR")
+	if !ok {
+		app.logger.Fatalln("worker address not found")
+	}
 
+	app.logger.Printf("scheduler addr: %s identified", schedulerAddr)
 	return worker.WorkerConf{
+		WorkerAddr:    workerAddr,
 		SchedulerAddr: schedulerAddr,
 		Logger:        logger,
 	}

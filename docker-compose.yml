@@ -29,6 +29,8 @@ services:
     entrypoint: air -c ./.air.worker.toml
     env_file:
       - ./.envs/worker.env
+    environment:
+      WORKER_ADDR: worker:9000
     volumes:
       - .:/app
 
