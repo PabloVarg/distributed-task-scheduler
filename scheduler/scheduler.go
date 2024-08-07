@@ -30,6 +30,7 @@ type Scheduler struct {
 	db        *sqlx.DB
 	logger    *log.Logger
 	taskModel task.TaskModel
+	WorkerPool
 	SchedulerConf
 }
 
@@ -50,6 +51,9 @@ func NewScheduler(conf SchedulerConf, logger *log.Logger) (*Scheduler, error) {
 		taskModel: task.TaskModel{
 			DB: db,
 		},
+		WorkerPool: WorkerPool{
+			workers: make(map[string]*Worker),
+		},
 		SchedulerConf: conf,
 	}, nil
 }
@@ -60,6 +64,7 @@ func (s *Scheduler) Start(ctx context.Context) <-chan any {
 	go s.pollTasks(ctx)
 	go s.startServer(ctx)
 	go s.startGRPCServer(ctx)
+	go s.cleanWorkersContext(ctx)
 
 	go func(ctx context.Context) {
 		select {
@@ -108,6 +113,10 @@ func (s *Scheduler) pollTasks(ctx context.Context) {
 			if err != nil {
 				s.logger.Fatalln(err)
 			}
+
+			s.WorkerPool.RLock()
+			s.logger.Printf("%+v", s.workers)
+			s.WorkerPool.RUnlock()
 
 			for _, task := range tasks {
 				err := s.taskModel.CompleteTask(ctx, task.ID)

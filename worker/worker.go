@@ -61,7 +61,8 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(1 * time.Second): // TODO: Get from ENV
+		case <-time.After(10 * time.Second): // TODO: Get from ENV
+			w.logger.Printf("Sending heartbeat from %s", w.WorkerConf.WorkerAddr)
 			w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
 				Address: w.WorkerConf.WorkerAddr,
 			})
