@@ -13,7 +13,10 @@ type SchedulerServerImpl struct {
 
 func (s *SchedulerServerImpl) SendHeartbeat(ctx context.Context, heartbeat *pb.Heartbeat) (*pb.Ok, error) {
 	s.logger.Printf("Receiving heartbeat from %s", heartbeat.GetAddress())
-	s.handleHeartbeat(heartbeat.GetAddress())
+	err := s.handleHeartbeat(heartbeat.GetAddress())
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.Ok{
 		Success: true,
