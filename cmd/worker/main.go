@@ -39,6 +39,7 @@ func (app *app) readConf(logger *log.Logger) worker.WorkerConf {
 
 	app.logger.Printf("scheduler addr: %s identified", schedulerAddr)
 	return worker.WorkerConf{
+		GRPCAddr:      ":9000",
 		WorkerAddr:    workerAddr,
 		SchedulerAddr: schedulerAddr,
 		Logger:        logger,
