@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+var ErrNoWorkers = errors.New("no available workers")
 
 type WorkerPool struct {
 	sync.RWMutex
@@ -21,6 +24,7 @@ type WorkerPool struct {
 type Worker struct {
 	addr          string
 	lastHeartbeat time.Time
+	conn          *grpc.ClientConn
 	client        pb.WorkerClient
 }
 
@@ -34,12 +38,12 @@ func (pool *WorkerPool) handleHeartbeat(addr string) error {
 		if err != nil {
 			return fmt.Errorf("Could not create grpc client for worker [%w]", err)
 		}
-		defer conn.Close()
 
 		pool.ids = append(pool.ids, addr)
 		pool.workers[addr] = &Worker{
 			addr:          addr,
 			lastHeartbeat: time.Now(),
+			conn:          conn,
 			client:        pb.NewWorkerClient(conn),
 		}
 		return nil
@@ -53,6 +57,9 @@ func (pool *WorkerPool) cleanWorkersContext(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			for _, worker := range pool.workers {
+				worker.conn.Close()
+			}
 			return
 		case <-time.After(1 * time.Second):
 			pool.cleanWorkers()
@@ -78,12 +85,16 @@ func (pool *WorkerPool) cleanWorkers() {
 	pool.counter = 0
 }
 
-func (pool *WorkerPool) nextWorker() string {
+func (pool *WorkerPool) nextWorker() (string, error) {
 	pool.Lock()
 	defer pool.Unlock()
+
+	if len(pool.ids) == 0 {
+		return "", ErrNoWorkers
+	}
 
 	selectedId := pool.ids[pool.counter%len(pool.ids)]
 	pool.counter++
 
-	return selectedId
+	return selectedId, nil
 }

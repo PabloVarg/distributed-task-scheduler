@@ -114,15 +114,31 @@ func (s *Scheduler) pollTasks(ctx context.Context) {
 				s.logger.Fatalln(err)
 			}
 
-			s.WorkerPool.RLock()
-			s.logger.Printf("%+v", s.workers)
-			s.WorkerPool.RUnlock()
-
 			for _, task := range tasks {
-				err := s.taskModel.CompleteTask(ctx, task.ID)
+				s.logger.Println(task)
+				workerId, err := s.nextWorker()
+				if err != nil {
+					s.logger.Println("could not retrieve next worker")
+					continue
+				}
+
+				s.WorkerPool.RLock()
+				worker, ok := s.workers[workerId]
+				if !ok {
+					s.logger.Println("could not retrieve selected worker")
+					continue
+				}
+
+				ctx, _ := context.WithCancel(context.Background())
+				_, err = worker.client.ExecuteJob(ctx, &pb.Task{
+					ID:      int64(task.ID),
+					Command: task.Command,
+				})
 				if err != nil {
 					s.logger.Println(err)
 				}
+
+				s.WorkerPool.RUnlock()
 			}
 		}
 	}
