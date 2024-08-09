@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os/exec"
 	"time"
 
 	"google.golang.org/grpc"
@@ -100,4 +101,14 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 
 func (w *Worker) executeJob(task task.Task) {
 	w.logger.Printf("executing %s", task.Command)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "sh", "-c", task.Command).Output()
+	if err != nil {
+		w.logger.Fatalln(err)
+	}
+
+	w.logger.Println(string(out))
 }
