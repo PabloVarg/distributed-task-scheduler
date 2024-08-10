@@ -8,40 +8,36 @@ import (
 	"github.com/pablovarg/distributed-task-scheduler/worker"
 )
 
-type app struct {
-	logger *log.Logger
+func main() {
+	run(defaultLogger())
 }
 
-func main() {
-	logger := log.New(os.Stdout, "", log.LUTC|log.Lshortfile)
-	app := app{
-		logger: logger,
-	}
-	conf := app.readConf(logger)
-	worker := worker.NewWorker(conf)
+func run(logger *log.Logger) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	app.logger.Println("Starting worker")
-	<-worker.Start(ctx)
-	app.logger.Println("Shutting down worker")
+	conf := readConf(logger)
+	<-worker.NewWorker(conf).Start(ctx)
 }
 
-func (app *app) readConf(logger *log.Logger) worker.WorkerConf {
+func readConf(logger *log.Logger) worker.WorkerConf {
 	schedulerAddr, ok := os.LookupEnv("SCHEDULER_ADDR")
 	if !ok {
-		app.logger.Fatalln("scheduler address not found")
+		logger.Fatalln("scheduler address not found")
 	}
 	workerAddr, ok := os.LookupEnv("WORKER_ADDR")
 	if !ok {
-		app.logger.Fatalln("worker address not found")
+		logger.Fatalln("worker address not found")
 	}
 
-	app.logger.Printf("scheduler addr: %s identified", schedulerAddr)
 	return worker.WorkerConf{
 		GRPCAddr:      ":9000",
 		WorkerAddr:    workerAddr,
 		SchedulerAddr: schedulerAddr,
 		Logger:        logger,
 	}
+}
+
+func defaultLogger() *log.Logger {
+	return log.New(os.Stdout, "", log.LUTC|log.Lshortfile)
 }
