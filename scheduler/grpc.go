@@ -18,7 +18,6 @@ func (s *SchedulerServerImpl) SendHeartbeat(ctx context.Context, heartbeat *pb.H
 		return nil, err
 	}
 
-	return &pb.Ok{
-		Success: true,
-	}, nil
+	return &pb.Ok{}, nil
+}
 }

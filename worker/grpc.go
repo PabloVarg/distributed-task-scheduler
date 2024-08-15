@@ -19,7 +19,5 @@ func (w *WorkerServerImpl) ExecuteJob(ctx context.Context, sentTask *pb.Task) (*
 		Command: sentTask.GetCommand(),
 	})
 
-	return &pb.Ok{
-		Success: true,
-	}, nil
+	return &pb.Ok{}, nil
 }
