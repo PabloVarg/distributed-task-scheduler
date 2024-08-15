@@ -3,12 +3,16 @@ option go_package = "github.com/pablovarg/distributed-task-scheduler/internal/gr
 
 package grpc;
 
-message Heartbeat {
-    string Address = 1;
+enum TaskState {
+    PICKED = 0;
+    SUCCESS = 1;
+    FAILED = 2;
 }
 
-message Ok {
-    bool Success = 1;
+message Ok {}
+
+message Heartbeat {
+    string Address = 1;
 }
 
 message Task {
@@ -16,8 +20,14 @@ message Task {
     string command = 2;
 }
 
+message TaskStatus {
+    int64 ID = 1;
+    TaskState state = 2;
+}
+
 service Scheduler {
     rpc SendHeartbeat (Heartbeat) returns (Ok) {}
+    rpc UpdateJobStatus (TaskStatus) returns (Ok) {}
 }
 
 service Worker {
