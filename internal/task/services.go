@@ -30,8 +30,10 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
         FROM
             task
         WHERE
-            scheduled_at <= NOW() + INTERVAL '5 days'
+            scheduled_at <= NOW() + INTERVAL '15 days'
             AND successful_at IS NULL
+            AND picked_at IS NULL
+            AND failed_at IS NULL
     `
 
 	if batchSize != 0 {
@@ -39,6 +41,10 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
             LIMIT $1
         `
 	}
+
+	query += `
+        FOR UPDATE SKIP LOCKED
+    `
 
 	var dueTasks []Task
 	switch batchSize {
