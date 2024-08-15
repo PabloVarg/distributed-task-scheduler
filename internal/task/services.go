@@ -61,12 +61,66 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
 	return dueTasks, nil
 }
 
+func (m *TaskModel) PickTask(ctx context.Context, taskID int) error {
+	query := `
+        UPDATE
+            task
+        SET
+            picked_at = NOW()
+        WHERE
+            id = $1
+    `
+
+	result, err := m.DB.ExecContext(ctx, query, taskID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("task not found")
+	}
+
+	return nil
+}
+
 func (m *TaskModel) CompleteTask(ctx context.Context, taskID int) error {
 	query := `
         UPDATE
             task
         SET
             successful_at = NOW()
+        WHERE
+            id = $1
+    `
+
+	result, err := m.DB.ExecContext(ctx, query, taskID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("task not found")
+	}
+
+	return nil
+}
+
+func (m *TaskModel) FailTask(ctx context.Context, taskID int) error {
+	query := `
+        UPDATE
+            task
+        SET
+            failed_at = NOW()
         WHERE
             id = $1
     `
