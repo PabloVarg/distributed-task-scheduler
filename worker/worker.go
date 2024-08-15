@@ -105,10 +105,23 @@ func (w *Worker) executeJob(task task.Task) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
+	w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+		ID:    int64(task.ID),
+		State: pb.TaskState_PICKED,
+	})
+
 	out, err := exec.CommandContext(ctx, "sh", "-c", task.Command).Output()
 	if err != nil {
+		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+			ID:    int64(task.ID),
+			State: pb.TaskState_FAILED,
+		})
 		w.logger.Fatalln(err)
 	}
 
+	w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+		ID:    int64(task.ID),
+		State: pb.TaskState_SUCCESS,
+	})
 	w.logger.Println(string(out))
 }
