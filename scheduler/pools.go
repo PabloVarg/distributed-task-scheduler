@@ -36,7 +36,7 @@ func (pool *WorkerPool) handleHeartbeat(addr string) error {
 	if !ok {
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			return fmt.Errorf("Could not create grpc client for worker [%w]", err)
+			return fmt.Errorf("could not create grpc client for worker [%w]", err)
 		}
 
 		pool.ids = append(pool.ids, addr)
