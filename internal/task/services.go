@@ -62,81 +62,53 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
 }
 
 func (m *TaskModel) PickTask(ctx context.Context, taskID int) error {
-	query := `
-        UPDATE
-            task
-        SET
-            picked_at = NOW()
-        WHERE
-            id = $1
-    `
-
-	result, err := m.DB.ExecContext(ctx, query, taskID)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("task not found")
-	}
-
-	return nil
+	return m.updateTask(ctx, taskID, "picked_at")
 }
 
 func (m *TaskModel) CompleteTask(ctx context.Context, taskID int) error {
-	query := `
-        UPDATE
-            task
-        SET
-            successful_at = NOW()
-        WHERE
-            id = $1
-    `
-
-	result, err := m.DB.ExecContext(ctx, query, taskID)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("task not found")
-	}
-
-	return nil
+	return m.updateTask(ctx, taskID, "successful_at")
 }
 
 func (m *TaskModel) FailTask(ctx context.Context, taskID int) error {
-	query := `
+	return m.updateTask(ctx, taskID, "failed_at")
+}
+
+func (m *TaskModel) updateTask(ctx context.Context, taskID int, field string) error {
+	selectQuery := `
+        SELECT id FROM task WHERE id = $1
+    `
+
+	updateQuery := fmt.Sprintf(`
         UPDATE
             task
         SET
-            failed_at = NOW()
+            %s = NOW()
         WHERE
             id = $1
-    `
+    `, field)
 
-	result, err := m.DB.ExecContext(ctx, query, taskID)
+	tx, err := m.DB.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 
+	result, err := tx.ExecContext(ctx, selectQuery, taskID)
+	if err != nil {
+		return err
+	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-
 	if rowsAffected == 0 {
 		return fmt.Errorf("task not found")
+	}
+
+	tx.ExecContext(ctx, updateQuery, taskID)
+
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 
 	return nil
