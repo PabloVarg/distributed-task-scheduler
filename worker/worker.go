@@ -51,16 +51,18 @@ func (w *Worker) Start(ctx context.Context) <-chan any {
 	if err != nil {
 		w.logger.Fatalln(err)
 	}
-	defer conn.Close()
 
 	w.schedulerClient = pb.NewSchedulerClient(conn)
 	go w.sendHeartbeats(ctx)
 	go w.startGRPCServer(ctx)
 
-	select {
-	case <-ctx.Done():
-		close(done)
-	}
+	go func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+			close(done)
+		}
+	}(ctx)
 	return done
 }
 
