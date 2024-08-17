@@ -23,6 +23,7 @@ type WorkerConf struct {
 }
 
 type Worker struct {
+	ctx             context.Context
 	schedulerClient pb.SchedulerClient
 	logger          *log.Logger
 	WorkerConf
@@ -43,6 +44,8 @@ func NewWorker(conf WorkerConf) *Worker {
 
 func (w *Worker) Start(ctx context.Context) <-chan any {
 	done := make(chan any)
+
+	w.ctx = ctx
 
 	conn, err := grpc.NewClient(w.WorkerConf.SchedulerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -100,28 +103,27 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 }
 
 func (w *Worker) executeJob(task task.Task) {
-	w.logger.Printf("executing %s", task.Command)
+	go func(ctx context.Context) {
+		w.logger.Printf("executing %s", task.Command)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
-		ID:    int64(task.ID),
-		State: pb.TaskState_PICKED,
-	})
-
-	out, err := exec.CommandContext(ctx, "sh", "-c", task.Command).Output()
-	if err != nil {
 		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
 			ID:    int64(task.ID),
-			State: pb.TaskState_FAILED,
+			State: pb.TaskState_PICKED,
 		})
-		w.logger.Fatalln(err)
-	}
 
-	w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
-		ID:    int64(task.ID),
-		State: pb.TaskState_SUCCESS,
-	})
-	w.logger.Println(string(out))
+		out, err := exec.CommandContext(ctx, "sh", "-c", task.Command).Output()
+		if err != nil {
+			w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+				ID:    int64(task.ID),
+				State: pb.TaskState_FAILED,
+			})
+			w.logger.Fatalln(err)
+		}
+
+		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+			ID:    int64(task.ID),
+			State: pb.TaskState_SUCCESS,
+		})
+		w.logger.Println(string(out))
+	}(w.ctx)
 }
