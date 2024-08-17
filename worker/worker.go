@@ -118,10 +118,14 @@ func (w *Worker) executeJob(task task.Task) {
 	go func(ctx context.Context) {
 		w.logger.Info("executing", "command", task.Command)
 
-		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+		_, err := w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
 			ID:    int64(task.ID),
 			State: pb.TaskState_PICKED,
 		})
+		if err != nil {
+			w.logger.Error("error picking task", "ID", task.ID, "error", err)
+			return
+		}
 
 		out, err := exec.CommandContext(ctx, "sh", "-c", task.Command).Output()
 		if err != nil {
@@ -133,10 +137,15 @@ func (w *Worker) executeJob(task task.Task) {
 			panic(err)
 		}
 
-		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
+		_, err = w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
 			ID:    int64(task.ID),
 			State: pb.TaskState_SUCCESS,
 		})
+		if err != nil {
+			w.logger.Error("error marking task as successful", "ID", task.ID)
+			return
+		}
+
 		w.logger.Info("executed command", "output", string(out))
 	}(w.ctx)
 }

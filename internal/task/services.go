@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
+	"reflect"
 )
 
 func (m *TaskModel) CreateTask(ctx context.Context, task Task) (*Task, error) {
@@ -62,20 +63,20 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
 }
 
 func (m *TaskModel) PickTask(ctx context.Context, taskID int) error {
-	return m.updateTask(ctx, taskID, "picked_at")
+	return m.updateTask(ctx, taskID, "picked_at", "PickedAt")
 }
 
 func (m *TaskModel) CompleteTask(ctx context.Context, taskID int) error {
-	return m.updateTask(ctx, taskID, "successful_at")
+	return m.updateTask(ctx, taskID, "successful_at", "SuccessfulAt")
 }
 
 func (m *TaskModel) FailTask(ctx context.Context, taskID int) error {
-	return m.updateTask(ctx, taskID, "failed_at")
+	return m.updateTask(ctx, taskID, "failed_at", "FailedAt")
 }
 
-func (m *TaskModel) updateTask(ctx context.Context, taskID int, field string) error {
+func (m *TaskModel) updateTask(ctx context.Context, taskID int, dbField string, structField string) error {
 	selectQuery := `
-        SELECT id FROM task WHERE id = $1
+        SELECT id, picked_at, successful_at, failed_at FROM task WHERE id = $1
     `
 
 	updateQuery := fmt.Sprintf(`
@@ -85,7 +86,7 @@ func (m *TaskModel) updateTask(ctx context.Context, taskID int, field string) er
             %s = NOW()
         WHERE
             id = $1
-    `, field)
+    `, dbField)
 
 	tx, err := m.DB.BeginTxx(ctx, nil)
 	if err != nil {
@@ -93,16 +94,14 @@ func (m *TaskModel) updateTask(ctx context.Context, taskID int, field string) er
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx, selectQuery, taskID)
+	var task Task
+	err = tx.GetContext(ctx, &task, selectQuery, taskID)
 	if err != nil {
 		return err
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("task not found")
+
+	if !reflect.ValueOf(task).FieldByName(structField).IsNil() {
+		return fmt.Errorf("state %s already set", structField)
 	}
 
 	tx.ExecContext(ctx, updateQuery, taskID)
