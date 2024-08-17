@@ -129,18 +129,24 @@ func (s *Scheduler) pollTasks(ctx context.Context) {
 					continue
 				}
 
-				ctx, _ := context.WithCancel(context.Background())
-				_, err = worker.client.ExecuteJob(ctx, &pb.Task{
-					ID:      int64(task.ID),
-					Command: task.Command,
-				})
-				if err != nil {
-					s.logger.Println(err)
-				}
+				go s.sendTask(task, worker)
 
 				s.WorkerPool.RUnlock()
 			}
 		}
+	}
+}
+
+func (s *Scheduler) sendTask(task task.Task, worker *Worker) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := worker.client.ExecuteJob(ctx, &pb.Task{
+		ID:      int64(task.ID),
+		Command: task.Command,
+	})
+	if err != nil {
+		s.logger.Println(err)
 	}
 }
 
