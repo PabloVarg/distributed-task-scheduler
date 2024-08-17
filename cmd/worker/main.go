@@ -4,16 +4,20 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 
 	"github.com/pablovarg/distributed-task-scheduler/worker"
 )
 
 func main() {
-	run(defaultLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	run(ctx, defaultLogger())
 }
 
-func run(logger *log.Logger) {
-	ctx, cancel := context.WithCancel(context.Background())
+func run(ctx context.Context, logger *log.Logger) {
+	ctx, cancel := signal.NotifyContext(ctx)
 	defer cancel()
 
 	conf := readConf(logger)

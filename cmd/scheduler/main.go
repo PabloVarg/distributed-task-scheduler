@@ -4,23 +4,27 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/pablovarg/distributed-task-scheduler/scheduler"
 )
 
 func main() {
-	run(defaultLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	run(ctx, defaultLogger())
 }
 
-func run(logger *log.Logger) {
+func run(ctx context.Context, logger *log.Logger) {
 	schedulerConf := readConf(logger)
 	scheduler, err := scheduler.NewScheduler(schedulerConf, logger)
 	if err != nil {
 		logger.Fatalln(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
 	<-scheduler.Start(ctx)
