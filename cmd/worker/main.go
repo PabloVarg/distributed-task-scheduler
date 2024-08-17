@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 
@@ -16,22 +17,28 @@ func main() {
 	run(ctx, defaultLogger())
 }
 
-func run(ctx context.Context, logger *log.Logger) {
-	ctx, cancel := signal.NotifyContext(ctx)
+func run(ctx context.Context, logger *slog.Logger) {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
 	conf := readConf(logger)
 	<-worker.NewWorker(conf).Start(ctx)
 }
 
-func readConf(logger *log.Logger) worker.WorkerConf {
+func readConf(logger *slog.Logger) worker.WorkerConf {
 	schedulerAddr, ok := os.LookupEnv("SCHEDULER_ADDR")
 	if !ok {
-		logger.Fatalln("scheduler address not found")
+		err := fmt.Errorf("scheduler address not found")
+
+		logger.Error(err.Error())
+		panic(err)
 	}
 	workerAddr, ok := os.LookupEnv("WORKER_ADDR")
 	if !ok {
-		logger.Fatalln("worker address not found")
+		err := fmt.Errorf("worker address not found")
+
+		logger.Error(err.Error())
+		panic(err)
 	}
 
 	return worker.WorkerConf{
@@ -42,6 +49,6 @@ func readConf(logger *log.Logger) worker.WorkerConf {
 	}
 }
 
-func defaultLogger() *log.Logger {
-	return log.New(os.Stdout, "", log.LUTC|log.Lshortfile)
+func defaultLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, nil))
 }

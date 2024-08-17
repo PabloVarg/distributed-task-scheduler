@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -19,7 +19,7 @@ import (
 
 type SchedulerConf struct {
 	DB_DSN       string
-	Logger       *log.Logger
+	Logger       *slog.Logger
 	Addr         string
 	GRPCAddr     string
 	PollInterval time.Duration
@@ -28,21 +28,21 @@ type SchedulerConf struct {
 
 type Scheduler struct {
 	db        *sqlx.DB
-	logger    *log.Logger
+	logger    *slog.Logger
 	taskModel task.TaskModel
 	WorkerPool
 	SchedulerConf
 }
 
-func NewScheduler(conf SchedulerConf, logger *log.Logger) (*Scheduler, error) {
+func NewScheduler(conf SchedulerConf) (*Scheduler, error) {
 	db, err := sqlx.Connect("postgres", conf.DB_DSN)
 	if err != nil {
-		return nil, fmt.Errorf("can not connect to the database (%w)", err)
+		return nil, fmt.Errorf("can not connect to the database [%w]", err)
 	}
 
 	assignedLogger := conf.Logger
 	if assignedLogger == nil {
-		assignedLogger = log.New(io.Discard, "", 0)
+		assignedLogger = slog.New(slog.NewJSONHandler(io.Discard, nil))
 	}
 
 	return &Scheduler{
@@ -85,11 +85,12 @@ func (s *Scheduler) startServer(ctx context.Context) {
 		WriteTimeout: 30 * time.Second,
 	}
 	go func() {
-		s.logger.Printf("Listening on %s\n", s.SchedulerConf.Addr)
+		s.logger.Info(fmt.Sprintf("listening on %s", s.SchedulerConf.Addr))
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			s.logger.Fatalln(err)
+			s.logger.Error(err.Error())
+			panic(err)
 		}
-		s.logger.Println("Shutting down server")
+		s.logger.Info("shutting down server")
 	}()
 
 	select {
@@ -106,26 +107,27 @@ func (s *Scheduler) pollTasks(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, s.SchedulerConf.PollInterval)
 			defer cancel()
 
 			tasks, err := s.taskModel.GetDueTasks(ctx, s.SchedulerConf.BatchSize)
 			if err != nil {
-				s.logger.Fatalln(err)
+				s.logger.Error(err.Error())
+				panic(err)
 			}
 
 			for _, task := range tasks {
-				s.logger.Println(task)
+				s.logger.Info("processing task", "task", task)
 				workerId, err := s.nextWorker()
 				if err != nil {
-					s.logger.Println("could not retrieve next worker")
+					s.logger.Error("could not retrieve next worker")
 					continue
 				}
 
 				s.WorkerPool.RLock()
 				worker, ok := s.workers[workerId]
 				if !ok {
-					s.logger.Println("could not retrieve selected worker")
+					s.logger.Error("could not retrieve selected worker")
 					continue
 				}
 
@@ -146,14 +148,14 @@ func (s *Scheduler) sendTask(task task.Task, worker *Worker) {
 		Command: task.Command,
 	})
 	if err != nil {
-		s.logger.Println(err)
+		s.logger.Error(err.Error())
 	}
 }
 
 func (s *Scheduler) startGRPCServer(ctx context.Context) {
 	lis, err := net.Listen("tcp", s.SchedulerConf.GRPCAddr)
 	if err != nil {
-		s.logger.Fatalln(err)
+		s.logger.Error(err.Error())
 	}
 
 	server := grpc.NewServer()
@@ -168,8 +170,9 @@ func (s *Scheduler) startGRPCServer(ctx context.Context) {
 		}
 	}(ctx)
 
-	s.logger.Printf("Grpc server listening on %s", s.SchedulerConf.GRPCAddr)
+	s.logger.Info(fmt.Sprintf("grpc server listening on %s", s.SchedulerConf.GRPCAddr))
 	if err := server.Serve(lis); err != nil {
-		s.logger.Fatalln(err)
+		s.logger.Error(err.Error())
+		panic(err)
 	}
 }

@@ -13,7 +13,7 @@ type WorkerServerImpl struct {
 }
 
 func (w *WorkerServerImpl) ExecuteJob(ctx context.Context, sentTask *pb.Task) (*pb.Ok, error) {
-	w.logger.Printf("worker received task %d", sentTask.GetID())
+	w.logger.Info("received task", "ID", sentTask.GetID())
 	w.Worker.executeJob(task.Task{
 		ID:      int(sentTask.GetID()),
 		Command: sentTask.GetCommand(),

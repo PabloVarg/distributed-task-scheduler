@@ -13,7 +13,7 @@ type SchedulerServerImpl struct {
 }
 
 func (s *SchedulerServerImpl) SendHeartbeat(ctx context.Context, heartbeat *pb.Heartbeat) (*pb.Ok, error) {
-	s.logger.Printf("Receiving heartbeat from %s", heartbeat.GetAddress())
+	s.logger.Info("received heartbeat from", "worker", heartbeat.GetAddress())
 	err := s.handleHeartbeat(heartbeat.GetAddress())
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func (s *SchedulerServerImpl) SendHeartbeat(ctx context.Context, heartbeat *pb.H
 }
 
 func (s *SchedulerServerImpl) UpdateJobStatus(ctx context.Context, task *pb.TaskStatus) (*pb.Ok, error) {
-	s.logger.Printf("update task %d with status %s", task.GetID(), task.GetState())
+	s.logger.Info("update task", "ID", task.GetID(), "status", task.GetState())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"time"
@@ -17,23 +18,29 @@ func main() {
 	run(ctx, defaultLogger())
 }
 
-func run(ctx context.Context, logger *log.Logger) {
-	schedulerConf := readConf(logger)
-	scheduler, err := scheduler.NewScheduler(schedulerConf, logger)
-	if err != nil {
-		logger.Fatalln(err)
-	}
-
+func run(ctx context.Context, logger *slog.Logger) {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
+	schedulerConf := readConf(logger)
+	scheduler, err := scheduler.NewScheduler(schedulerConf)
+	if err != nil {
+		logger.Error(err.Error())
+		panic(err)
+	}
+
+	logger.Info("starting scheduler")
 	<-scheduler.Start(ctx)
+	logger.Info("exiting scheduler")
 }
 
-func readConf(logger *log.Logger) scheduler.SchedulerConf {
+func readConf(logger *slog.Logger) scheduler.SchedulerConf {
 	dsn, ok := os.LookupEnv("POSTGRES_DSN")
 	if !ok {
-		logger.Fatalf("env variable %q not set", "POSTGRES_DSN")
+		err := fmt.Sprintf("env variable %s not set", "POSTGRES_DSN")
+
+		logger.Error(err)
+		panic(err)
 	}
 
 	return scheduler.SchedulerConf{
@@ -46,6 +53,6 @@ func readConf(logger *log.Logger) scheduler.SchedulerConf {
 	}
 }
 
-func defaultLogger() *log.Logger {
-	return log.New(os.Stdout, "", log.LUTC|log.Lshortfile)
+func defaultLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, nil))
 }

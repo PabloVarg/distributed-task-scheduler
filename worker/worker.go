@@ -2,8 +2,9 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"os/exec"
 	"time"
@@ -19,20 +20,20 @@ type WorkerConf struct {
 	GRPCAddr      string
 	WorkerAddr    string
 	SchedulerAddr string
-	Logger        *log.Logger
+	Logger        *slog.Logger
 }
 
 type Worker struct {
 	ctx             context.Context
 	schedulerClient pb.SchedulerClient
-	logger          *log.Logger
+	logger          *slog.Logger
 	WorkerConf
 }
 
 func NewWorker(conf WorkerConf) *Worker {
 	assignedLogger := conf.Logger
 	if assignedLogger == nil {
-		assignedLogger = log.New(io.Discard, "", 0)
+		assignedLogger = slog.New(slog.NewJSONHandler(io.Discard, nil))
 	}
 
 	worker := &Worker{
@@ -49,7 +50,8 @@ func (w *Worker) Start(ctx context.Context) <-chan any {
 
 	conn, err := grpc.NewClient(w.WorkerConf.SchedulerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		w.logger.Fatalln(err)
+		w.logger.Error(err.Error())
+		panic(err)
 	}
 
 	w.schedulerClient = pb.NewSchedulerClient(conn)
@@ -69,7 +71,8 @@ func (w *Worker) Start(ctx context.Context) <-chan any {
 func (w *Worker) startGRPCServer(ctx context.Context) {
 	lis, err := net.Listen("tcp", w.WorkerConf.GRPCAddr)
 	if err != nil {
-		w.logger.Fatalln(err)
+		w.logger.Error(err.Error())
+		panic(err)
 	}
 
 	server := grpc.NewServer()
@@ -84,9 +87,10 @@ func (w *Worker) startGRPCServer(ctx context.Context) {
 		}
 	}(ctx)
 
-	w.logger.Printf("Grpc server listening on %s", w.WorkerConf.GRPCAddr)
+	w.logger.Info(fmt.Sprintf("Grpc server listening on %s", w.WorkerConf.GRPCAddr))
 	if err := server.Serve(lis); err != nil {
-		w.logger.Fatalln(err)
+		w.logger.Error(err.Error())
+		panic(err)
 	}
 }
 
@@ -96,17 +100,20 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(2 * time.Second): // TODO: Get from ENV
-			w.logger.Printf("Sending heartbeat from %s", w.WorkerConf.WorkerAddr)
-			w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
+			w.logger.Info("Sending heartbeat", "worker", w.WorkerConf.WorkerAddr)
+			_, err := w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
 				Address: w.WorkerConf.WorkerAddr,
 			})
+			if err != nil {
+				w.logger.Error(err.Error())
+			}
 		}
 	}
 }
 
 func (w *Worker) executeJob(task task.Task) {
 	go func(ctx context.Context) {
-		w.logger.Printf("executing %s", task.Command)
+		w.logger.Info("executing", "command", task.Command)
 
 		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
 			ID:    int64(task.ID),
@@ -119,13 +126,14 @@ func (w *Worker) executeJob(task task.Task) {
 				ID:    int64(task.ID),
 				State: pb.TaskState_FAILED,
 			})
-			w.logger.Fatalln(err)
+			w.logger.Error(err.Error())
+			panic(err)
 		}
 
 		w.schedulerClient.UpdateJobStatus(ctx, &pb.TaskStatus{
 			ID:    int64(task.ID),
 			State: pb.TaskState_SUCCESS,
 		})
-		w.logger.Println(string(out))
+		w.logger.Info("executed command", "output", string(out))
 	}(w.ctx)
 }
