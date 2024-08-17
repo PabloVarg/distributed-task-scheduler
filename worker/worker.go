@@ -87,7 +87,7 @@ func (w *Worker) startGRPCServer(ctx context.Context) {
 		}
 	}(ctx)
 
-	w.logger.Info(fmt.Sprintf("Grpc server listening on %s", w.WorkerConf.GRPCAddr))
+	w.logger.Info(fmt.Sprintf("grpc server listening on %s", w.WorkerConf.GRPCAddr))
 	if err := server.Serve(lis); err != nil {
 		w.logger.Error(err.Error())
 		panic(err)
