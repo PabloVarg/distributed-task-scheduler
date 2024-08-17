@@ -95,11 +95,14 @@ func (w *Worker) startGRPCServer(ctx context.Context) {
 }
 
 func (w *Worker) sendHeartbeats(ctx context.Context) {
+	ticker := time.NewTicker(2 * time.Second) // TODO: Get from ENV
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(2 * time.Second): // TODO: Get from ENV
+		case <-ticker.C:
 			w.logger.Info("Sending heartbeat", "worker", w.WorkerConf.WorkerAddr)
 			_, err := w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
 				Address: w.WorkerConf.WorkerAddr,

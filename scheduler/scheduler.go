@@ -101,6 +101,7 @@ func (s *Scheduler) startServer(ctx context.Context) {
 
 func (s *Scheduler) pollTasks(ctx context.Context) {
 	ticker := time.NewTicker(s.SchedulerConf.PollInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
