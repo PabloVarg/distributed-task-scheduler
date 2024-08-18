@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/pablovarg/distributed-task-scheduler/internal/env"
 	"github.com/pablovarg/distributed-task-scheduler/worker"
 )
 
@@ -27,42 +28,13 @@ func run(ctx context.Context, logger *slog.Logger) {
 }
 
 func readConf(logger *slog.Logger) worker.WorkerConf {
-	schedulerAddr, ok := os.LookupEnv("SCHEDULER_ADDR")
-	if !ok {
-		err := fmt.Errorf("scheduler address not found")
+	schedulerAddr := env.GetRequiredEnvString("SCHEDULER_ADDR", logger)
+	workerAddr := env.GetRequiredEnvString("WORKER_ADDR", logger)
+	grpcAddr := env.GetRequiredEnvString("GRPC_ADDR", logger)
+	heartbeatInterval := env.GetEnvDuration("HEARTBEAT_INTERVAL", "0s", logger)
 
-		logger.Error(err.Error())
-		panic(err)
-	}
-	workerAddr, ok := os.LookupEnv("WORKER_ADDR")
-	if !ok {
-		err := fmt.Errorf("worker address not found")
-
-		logger.Error(err.Error())
-		panic(err)
-	}
-	grpcAddr, ok := os.LookupEnv("GRPC_ADDR")
-	if !ok {
-		err := fmt.Errorf("grpc address not found")
-
-		logger.Error(err.Error())
-		panic(err)
-	}
-
-	heartbeatInterval, ok := os.LookupEnv("HEARTBEAT_INTERVAL")
-	if !ok {
-		logger.Warn("heartbeat interval not found")
-		logger.Warn("heartbeats will be disabled")
-	}
-
-	var heartbeatDuration time.Duration
-	if heartbeatInterval != "" {
-		parsedHeartbeat, err := time.ParseDuration(heartbeatInterval)
-		if err != nil {
-			logger.Error(err.Error())
-			panic(err)
-		}
-		heartbeatDuration = parsedHeartbeat
+	if heartbeatInterval <= 0 {
+		logger.Warn("heartbeats will not be sent")
 	}
 
 	return worker.WorkerConf{
@@ -70,7 +42,7 @@ func readConf(logger *slog.Logger) worker.WorkerConf {
 		WorkerAddr:        workerAddr,
 		SchedulerAddr:     schedulerAddr,
 		Logger:            logger,
-		HeartbeatInterval: heartbeatDuration,
+		HeartbeatInterval: heartbeatInterval,
 	}
 }
 
