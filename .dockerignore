@@ -3,3 +3,4 @@ docker-compose*
 
 tmp/
 bin/
+.envs/

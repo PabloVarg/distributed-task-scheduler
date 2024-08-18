@@ -35,5 +35,18 @@ services:
       - db
       - scheduler
 
+  worker-2:
+    build:
+      dockerfile: ./Dockerfile
+      context: .
+    entrypoint: ./bin/worker
+    env_file:
+      - ./.envs/examples/heartbeats/worker.env
+    environment:
+      WORKER_ADDR: worker-2:9000
+    depends_on:
+      - db
+      - scheduler
+
 volumes:
   tasks_db_prod:
