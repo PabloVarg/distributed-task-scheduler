@@ -15,6 +15,10 @@ import (
 
 	pb "github.com/pablovarg/distributed-task-scheduler/internal/grpc"
 	"github.com/pablovarg/distributed-task-scheduler/internal/task"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 type SchedulerConf struct {
@@ -40,6 +44,17 @@ func NewScheduler(conf SchedulerConf) (*Scheduler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can not connect to the database [%w]", err)
 	}
+
+	driver, err := postgres.WithInstance(db.DB, &postgres.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("can not create driver from database [%w]", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance("file://migrations", "scheduler", driver)
+	if err != nil {
+		return nil, fmt.Errorf("can not create migrate instance [%w]", err)
+	}
+	m.Up()
 
 	assignedLogger := conf.Logger
 	if assignedLogger == nil {
