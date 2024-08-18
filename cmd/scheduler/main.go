@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/pablovarg/distributed-task-scheduler/scheduler"
@@ -42,6 +43,35 @@ func readConf(logger *slog.Logger) scheduler.SchedulerConf {
 		logger.Error(err.Error())
 		panic(err)
 	}
+	apiAddr, ok := os.LookupEnv("API_ADDR")
+	if !ok {
+		err := fmt.Errorf("env variable %s not set", "API_ADDR")
+
+		logger.Error(err.Error())
+		panic(err)
+	}
+	grpcAddr, ok := os.LookupEnv("GRPC_ADDR")
+	if !ok {
+		err := fmt.Errorf("env variable %s not set", "GRPC_ADDR")
+
+		logger.Error(err.Error())
+		panic(err)
+	}
+
+	var parsedBatchSize int
+	batchSize, ok := os.LookupEnv("BATCH_SIZE")
+	if ok {
+		value, err := strconv.Atoi(batchSize)
+		if err != nil {
+			err := fmt.Errorf("could not parse BATCH_SIZE")
+
+			logger.Error(err.Error())
+			panic(err)
+		}
+
+		parsedBatchSize = value
+	}
+
 	workerPeriod, ok := os.LookupEnv("WORKER_DEAD_PERIOD")
 	if !ok {
 		err := fmt.Errorf("env variable %s not set", "WORKER_DEAD_PERIOD")
@@ -49,7 +79,6 @@ func readConf(logger *slog.Logger) scheduler.SchedulerConf {
 		logger.Error(err.Error())
 		panic(err)
 	}
-
 	parsedWorkerDeadPeriod, err := time.ParseDuration(workerPeriod)
 	if err != nil {
 		err := fmt.Errorf("could not parse WORKER_DEAD_PERIOD")
@@ -58,13 +87,28 @@ func readConf(logger *slog.Logger) scheduler.SchedulerConf {
 		panic(err)
 	}
 
+	pollInterval, ok := os.LookupEnv("POLL_INTERVAL")
+	if !ok {
+		err := fmt.Errorf("env variable %s not set", "POLL_INTERVAL")
+
+		logger.Error(err.Error())
+		panic(err)
+	}
+	parsedPollInterval, err := time.ParseDuration(pollInterval)
+	if err != nil {
+		err := fmt.Errorf("could not parse POLL_INTERVAL")
+
+		logger.Error(err.Error())
+		panic(err)
+	}
+
 	return scheduler.SchedulerConf{
-		Addr:             ":8000",
-		GRPCAddr:         ":9000",
+		Addr:             apiAddr,
+		GRPCAddr:         grpcAddr,
 		DB_DSN:           dsn,
 		Logger:           logger,
-		PollInterval:     1 * time.Second,
-		BatchSize:        100,
+		PollInterval:     parsedPollInterval,
+		BatchSize:        parsedBatchSize,
 		WorkerDeadPeriod: parsedWorkerDeadPeriod,
 	}
 }
