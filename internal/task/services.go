@@ -6,6 +6,24 @@ import (
 	"reflect"
 )
 
+func (m *TaskModel) GetTask(ctx context.Context, ID int) (*Task, error) {
+	query := `
+        SELECT
+            id, command, scheduled_at, picked_at, successful_at, failed_at, created_at
+        FROM
+            task
+        WHERE
+            id = $1
+    `
+
+	var result Task
+	if err := m.DB.GetContext(ctx, &result, query, ID); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (m *TaskModel) CreateTask(ctx context.Context, task Task) (*Task, error) {
 	query := `
         INSERT INTO
