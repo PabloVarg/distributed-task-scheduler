@@ -31,7 +31,7 @@ func (m *TaskModel) GetDueTasks(ctx context.Context, batchSize int) ([]Task, err
         FROM
             task
         WHERE
-            scheduled_at <= NOW() + INTERVAL '15 days'
+            scheduled_at <= NOW() + INTERVAL '1 seconds'
             AND successful_at IS NULL
             AND picked_at IS NULL
             AND failed_at IS NULL
