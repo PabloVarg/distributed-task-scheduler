@@ -96,7 +96,7 @@ func (w *Worker) startGRPCServer(ctx context.Context) {
 }
 
 func (w *Worker) sendHeartbeats(ctx context.Context) {
-	if w.WorkerConf.HeartbeatInterval == 0 {
+	if w.WorkerConf.HeartbeatInterval <= 0 {
 		return
 	}
 
