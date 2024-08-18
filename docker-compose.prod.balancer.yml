@@ -1,0 +1,58 @@
+services:
+  traefik:
+    image: traefik:comte
+    ports:
+      - 9000:9000
+      - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.envs/examples/balancer/traefik.yml:/traefik.yml:ro
+
+  db:
+    image: postgres:16.3
+    restart: always
+    shm_size: 128mb
+    volumes:
+      - tasks_db_prod:/var/lib/postgresql/data
+    env_file:
+      - ./.envs/examples/balancer/db.env
+    ports:
+      - 5432:5432
+
+  scheduler:
+    build:
+      dockerfile: ./Dockerfile
+      context: .
+    entrypoint: ./bin/scheduler
+    env_file:
+      - ./.envs/examples/balancer/scheduler.env
+    depends_on:
+      - db
+    ports:
+      - 8000:8000
+
+  worker:
+    build:
+      dockerfile: ./Dockerfile
+      context: .
+    entrypoint: ./bin/worker
+    env_file:
+      - ./.envs/examples/balancer/worker.env
+    environment:
+      WORKER_ADDR: worker:9000
+    depends_on:
+      - db
+      - scheduler
+    deploy:
+      replicas: 2
+    ports:
+      - 9000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.workers.entrypoints=api"
+      - "traefik.http.routers.workers.rule=HostRegexp(`.*`)"
+      - "traefik.http.services.workers.loadbalancer.server.scheme=h2c"
+
+
+volumes:
+  tasks_db_prod:
