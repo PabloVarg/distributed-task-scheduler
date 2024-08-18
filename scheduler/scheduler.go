@@ -18,12 +18,13 @@ import (
 )
 
 type SchedulerConf struct {
-	DB_DSN       string
-	Logger       *slog.Logger
-	Addr         string
-	GRPCAddr     string
-	PollInterval time.Duration
-	BatchSize    int
+	DB_DSN           string
+	Logger           *slog.Logger
+	Addr             string
+	GRPCAddr         string
+	PollInterval     time.Duration
+	BatchSize        int
+	WorkerDeadPeriod time.Duration
 }
 
 type Scheduler struct {
@@ -52,8 +53,9 @@ func NewScheduler(conf SchedulerConf) (*Scheduler, error) {
 			DB: db,
 		},
 		WorkerPool: WorkerPool{
-			workers: make(map[string]*Worker),
-			logger:  assignedLogger,
+			workers:          make(map[string]*Worker),
+			logger:           assignedLogger,
+			workerDeadPeriod: conf.WorkerDeadPeriod,
 		},
 		SchedulerConf: conf,
 	}, nil

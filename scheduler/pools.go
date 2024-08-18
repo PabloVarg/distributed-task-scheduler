@@ -17,10 +17,11 @@ var ErrNoWorkers = errors.New("no available workers")
 
 type WorkerPool struct {
 	sync.RWMutex
-	workers map[string]*Worker
-	ids     []string
-	counter int
-	logger  *slog.Logger
+	workers          map[string]*Worker
+	ids              []string
+	counter          int
+	logger           *slog.Logger
+	workerDeadPeriod time.Duration
 }
 
 type Worker struct {
@@ -58,6 +59,13 @@ func (pool *WorkerPool) handleHeartbeat(addr string) error {
 }
 
 func (pool *WorkerPool) cleanWorkersContext(ctx context.Context) {
+	if pool.workerDeadPeriod <= 0 {
+		return
+	}
+
+	ticker := time.NewTicker(pool.workerDeadPeriod)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -65,7 +73,7 @@ func (pool *WorkerPool) cleanWorkersContext(ctx context.Context) {
 				worker.conn.Close()
 			}
 			return
-		case <-time.After(1 * time.Second):
+		case <-ticker.C:
 			pool.cleanWorkers()
 		}
 	}
@@ -77,7 +85,7 @@ func (pool *WorkerPool) cleanWorkers() {
 
 	newIDs := []string{}
 	for addr, worker := range pool.workers {
-		if time.Now().Sub(worker.lastHeartbeat) > 5*time.Second { // TODO: Get this value from .env
+		if time.Now().Sub(worker.lastHeartbeat) >= pool.workerDeadPeriod {
 			pool.logger.Warn("lost contact with worker", "addr", addr)
 			delete(pool.workers, addr)
 			continue
