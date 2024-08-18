@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/pablovarg/distributed-task-scheduler/internal/env"
 	"github.com/pablovarg/distributed-task-scheduler/worker"
