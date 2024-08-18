@@ -103,7 +103,6 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			w.logger.Info("Sending heartbeat", "worker", w.WorkerConf.WorkerAddr)
 			_, err := w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
 				Address: w.WorkerConf.WorkerAddr,
 			})

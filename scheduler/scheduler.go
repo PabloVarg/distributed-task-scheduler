@@ -53,6 +53,7 @@ func NewScheduler(conf SchedulerConf) (*Scheduler, error) {
 		},
 		WorkerPool: WorkerPool{
 			workers: make(map[string]*Worker),
+			logger:  assignedLogger,
 		},
 		SchedulerConf: conf,
 	}, nil

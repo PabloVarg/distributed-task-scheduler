@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ type WorkerPool struct {
 	workers map[string]*Worker
 	ids     []string
 	counter int
+	logger  *slog.Logger
 }
 
 type Worker struct {
@@ -38,6 +40,8 @@ func (pool *WorkerPool) handleHeartbeat(addr string) error {
 		if err != nil {
 			return fmt.Errorf("could not create grpc client for worker [%w]", err)
 		}
+
+		pool.logger.Info("detected new worker", "addr", addr)
 
 		pool.ids = append(pool.ids, addr)
 		pool.workers[addr] = &Worker{
@@ -74,6 +78,7 @@ func (pool *WorkerPool) cleanWorkers() {
 	newIDs := []string{}
 	for addr, worker := range pool.workers {
 		if time.Now().Sub(worker.lastHeartbeat) > 5*time.Second { // TODO: Get this value from .env
+			pool.logger.Warn("lost contact with worker", "addr", addr)
 			delete(pool.workers, addr)
 			continue
 		}
