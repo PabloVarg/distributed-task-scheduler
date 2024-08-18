@@ -17,10 +17,11 @@ import (
 )
 
 type WorkerConf struct {
-	GRPCAddr      string
-	WorkerAddr    string
-	SchedulerAddr string
-	Logger        *slog.Logger
+	GRPCAddr          string
+	WorkerAddr        string
+	SchedulerAddr     string
+	HeartbeatInterval time.Duration
+	Logger            *slog.Logger
 }
 
 type Worker struct {
@@ -95,7 +96,11 @@ func (w *Worker) startGRPCServer(ctx context.Context) {
 }
 
 func (w *Worker) sendHeartbeats(ctx context.Context) {
-	ticker := time.NewTicker(2 * time.Second) // TODO: Get from ENV
+	if w.WorkerConf.HeartbeatInterval == 0 {
+		return
+	}
+
+	ticker := time.NewTicker(w.WorkerConf.HeartbeatInterval)
 	defer ticker.Stop()
 
 	for {
@@ -103,6 +108,7 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			w.logger.Debug("sending heartbeat", "schedulerAddr", w.WorkerConf.SchedulerAddr)
 			_, err := w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
 				Address: w.WorkerConf.WorkerAddr,
 			})
