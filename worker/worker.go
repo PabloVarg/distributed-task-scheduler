@@ -103,19 +103,25 @@ func (w *Worker) sendHeartbeats(ctx context.Context) {
 	ticker := time.NewTicker(w.WorkerConf.HeartbeatInterval)
 	defer ticker.Stop()
 
+	w.sendHeartbeat(ctx)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			w.logger.Debug("sending heartbeat", "schedulerAddr", w.WorkerConf.SchedulerAddr)
-			_, err := w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
-				Address: w.WorkerConf.WorkerAddr,
-			})
-			if err != nil {
-				w.logger.Error(err.Error())
-			}
+			w.sendHeartbeat(ctx)
 		}
+	}
+}
+
+func (w *Worker) sendHeartbeat(ctx context.Context) {
+	w.logger.Debug("sending heartbeat", "schedulerAddr", w.WorkerConf.SchedulerAddr)
+	_, err := w.schedulerClient.SendHeartbeat(ctx, &pb.Heartbeat{
+		Address: w.WorkerConf.WorkerAddr,
+	})
+	if err != nil {
+		w.logger.Error(err.Error())
 	}
 }
 
