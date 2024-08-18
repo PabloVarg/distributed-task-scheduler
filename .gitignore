@@ -3,4 +3,4 @@ tmp/
 bin/
 
 # Env
-.envs/
+.envs/*.env
