@@ -124,7 +124,7 @@ func (s *Scheduler) pollTasks(ctx context.Context) {
 				s.logger.Info("processing task", "task", task)
 				workerId, err := s.nextWorker()
 				if err != nil {
-					s.logger.Error("could not retrieve next worker")
+					s.logger.Error(err.Error())
 					continue
 				}
 
