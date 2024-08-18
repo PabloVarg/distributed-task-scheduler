@@ -13,7 +13,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var ErrNoWorkers = errors.New("no available workers")
+var (
+	ErrNoWorkers         = errors.New("no available workers")
+	ErrNonExistingWorker = errors.New("the selected worker does not exist")
+)
 
 type WorkerPool struct {
 	sync.RWMutex
@@ -22,6 +25,7 @@ type WorkerPool struct {
 	counter          int
 	logger           *slog.Logger
 	workerDeadPeriod time.Duration
+	staticWorkerAddr string
 }
 
 type Worker struct {
@@ -31,7 +35,32 @@ type Worker struct {
 	client        pb.WorkerClient
 }
 
+func (pool *WorkerPool) Start(ctx context.Context) {
+	if pool.staticWorkerAddr != "" {
+		conn, err := grpc.NewClient(pool.staticWorkerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			err := fmt.Errorf("could not create grpc client for static worker")
+			pool.logger.Error(err.Error())
+			panic(err)
+		}
+
+		pool.ids = append(pool.ids, pool.staticWorkerAddr)
+		pool.workers[pool.staticWorkerAddr] = &Worker{
+			addr:   pool.staticWorkerAddr,
+			conn:   conn,
+			client: pb.NewWorkerClient(conn),
+		}
+
+		pool.logger.Warn("static worker detected, all tasks will be sent to the same address", "worker", pool.staticWorkerAddr)
+	}
+
+	go pool.cleanWorkersContext(ctx)
+}
+
 func (pool *WorkerPool) handleHeartbeat(addr string) error {
+	if pool.staticWorkerAddr != "" {
+		return nil
+	}
 	pool.Lock()
 	defer pool.Unlock()
 
@@ -74,6 +103,10 @@ func (pool *WorkerPool) cleanWorkersContext(ctx context.Context) {
 			}
 			return
 		case <-ticker.C:
+			if pool.staticWorkerAddr != "" {
+				continue
+			}
+
 			pool.cleanWorkers()
 		}
 	}
@@ -99,6 +132,10 @@ func (pool *WorkerPool) cleanWorkers() {
 }
 
 func (pool *WorkerPool) nextWorker() (string, error) {
+	if pool.staticWorkerAddr != "" {
+		return pool.staticWorkerAddr, nil
+	}
+
 	pool.Lock()
 	defer pool.Unlock()
 

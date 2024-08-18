@@ -29,6 +29,7 @@ type SchedulerConf struct {
 	PollInterval     time.Duration
 	BatchSize        int
 	WorkerDeadPeriod time.Duration
+	StaticWorkerAddr string
 }
 
 type Scheduler struct {
@@ -71,6 +72,7 @@ func NewScheduler(conf SchedulerConf) (*Scheduler, error) {
 			workers:          make(map[string]*Worker),
 			logger:           assignedLogger,
 			workerDeadPeriod: conf.WorkerDeadPeriod,
+			staticWorkerAddr: conf.StaticWorkerAddr,
 		},
 		SchedulerConf: conf,
 	}, nil
@@ -82,7 +84,7 @@ func (s *Scheduler) Start(ctx context.Context) <-chan any {
 	go s.pollTasks(ctx)
 	go s.startServer(ctx)
 	go s.startGRPCServer(ctx)
-	go s.cleanWorkersContext(ctx)
+	go s.WorkerPool.Start(ctx)
 
 	go func(ctx context.Context) {
 		select {

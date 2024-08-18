@@ -37,6 +37,7 @@ func readConf(logger *slog.Logger) scheduler.SchedulerConf {
 	dsn := env.GetRequiredEnvString("POSTGRES_DSN", logger)
 	apiAddr := env.GetRequiredEnvString("API_ADDR", logger)
 	grpcAddr := env.GetRequiredEnvString("GRPC_ADDR", logger)
+	staticWorkerAddr := env.GetEnvString("STATIC_WORKER_ADDR", "", logger)
 	batchSize := env.GetEnvInt("BATCH_SIZE", 0, logger)
 	workerDeadPeriod := env.GetRequiredEnvDuration("WORKER_DEAD_PERIOD", logger)
 	pollInterval := env.GetRequiredEnvDuration("POLL_INTERVAL", logger)
@@ -49,6 +50,7 @@ func readConf(logger *slog.Logger) scheduler.SchedulerConf {
 		PollInterval:     pollInterval,
 		BatchSize:        batchSize,
 		WorkerDeadPeriod: workerDeadPeriod,
+		StaticWorkerAddr: staticWorkerAddr,
 	}
 }
 
