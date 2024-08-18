@@ -1,5 +1,6 @@
 # Binaries
 tmp/
+bin/
 
 # Env
 .envs/

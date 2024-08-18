@@ -4,7 +4,7 @@ services:
     restart: always
     shm_size: 128mb
     volumes:
-      - tasks_db:/var/lib/postgresql/data
+      - tasks_db_prod:/var/lib/postgresql/data
     env_file:
       - ./.envs/db.env
     ports:
@@ -12,13 +12,11 @@ services:
 
   scheduler:
     build:
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./Dockerfile
       context: .
-    entrypoint: air -c ./.air.scheduler.toml
+    entrypoint: ./bin/scheduler
     env_file:
       - ./.envs/scheduler.env
-    volumes:
-      - .:/app
     ports:
       - 8000:8000
     depends_on:
@@ -26,18 +24,16 @@ services:
 
   worker:
     build:
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./Dockerfile
       context: .
-    entrypoint: air -c ./.air.worker.toml
+    entrypoint: ./bin/worker
     env_file:
       - ./.envs/worker.env
     environment:
       WORKER_ADDR: worker:9000
-    volumes:
-      - .:/app
     depends_on:
       - db
       - scheduler
 
 volumes:
-  tasks_db:
+  tasks_db_prod:
