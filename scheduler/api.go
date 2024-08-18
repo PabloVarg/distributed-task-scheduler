@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/pablovarg/distributed-task-scheduler/internal/api"
@@ -39,7 +39,7 @@ func (s *Scheduler) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logger.Info("created task", "task", task)
-	w.Header().Set("Location", strconv.Itoa(task.ID))
+	w.Header().Set("Location", fmt.Sprintf("/tasks/%d", task.ID))
 	w.WriteHeader(http.StatusCreated)
 }
 
